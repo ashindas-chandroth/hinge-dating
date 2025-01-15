@@ -1,13 +1,20 @@
 
-import { StyleSheet, Text, View, SafeAreaView, TouchableOpacity, Image } from 'react-native'
-import React, { useState } from 'react'
+import { StyleSheet, Text, View, SafeAreaView, TouchableOpacity, Image, PermissionsAndroid } from 'react-native'
+import React, { useEffect, useState } from 'react'
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons'
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons'
 import MapView, { Marker } from 'react-native-maps'
+import Geolocation from '@react-native-community/geolocation'
 
 const LocationScreen = () => {
-  const [location,setLocation]=useState("")
-  const [coordinates]=useState([
+  const [location, setLocation] = useState("")
+  const [region, setRegion] = useState({
+    latitude: 0,
+    longitude: 0,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  });
+  const [coordinates] = useState([
     {
       latitude: 12.9716,
       longitude: 77.5946,
@@ -17,6 +24,42 @@ const LocationScreen = () => {
       longitude: 77.6269,
     },
   ])
+  useEffect(() => {
+    getCurrentLoaction();
+  }, [])
+
+  const getCurrentLoaction = async () => {
+    const isGranted= await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
+    if(isGranted)
+    {
+      Geolocation.getCurrentPosition(position => {
+        const { latitude, longitude } = position.coords;
+        setRegion({ ...region, latitude, longitude });
+        fetch(
+          `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=AIzaSyA13oPu2cTwnb1keuURXnWrOvYvV-n9cJs`,
+        ).then(response => response.json()).then(data => {
+          console.log(data);
+          if (data.results.length > 0) {
+            setLocation(data.results[0].formatted_address);
+          }
+        }).catch((error) => console.log("Error fetching the location", error));
+      })
+    }
+    else
+    {
+      const req= await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
+      if(req===PermissionsAndroid.RESULTS.GRANTED)
+      {
+        getCurrentLoaction();
+      }
+      else
+      {
+        Alert.alert('Permission Denied', 'Location access is denied');
+      }
+
+    }
+    
+  }
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
       <View style={{ marginTop: 90, marginHorizontal: 20 }}>
@@ -64,7 +107,7 @@ const LocationScreen = () => {
           }} >
           <Marker draggable coordinate={coordinates[1]}>
             <View>
-              <Text style={{textAlign:"center",fontSize:14,fontWeight:"500"}}>{location}</Text>
+              <Text style={{ textAlign: "center", fontSize: 14, fontWeight: "500" }}>{location}</Text>
             </View>
           </Marker>
         </MapView>
